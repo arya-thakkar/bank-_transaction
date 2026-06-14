@@ -13,7 +13,7 @@ async function authMiddleware(req, res, next) {
     });
   }
 
-  const isBlackListed = await tokenBlackListModel.findOne({ token });
+  const isBlackListed = await tokenBlacklistModel.findOne({ token });
 
   if (isBlackListed) {
     return res.status(401).json({
@@ -44,7 +44,7 @@ async function authSystemMiddleware(req, res, next) {
     });
   }
 
-  const isBlackListed = await tokenBlackListModel.findOne({ token });
+  const isBlackListed = await tokenBlacklistModel.findOne({ token });
 
   if (isBlackListed) {
     return res.status(401).json({
