@@ -21,22 +21,16 @@ transporter.verify((error, success) => {
 });
 
 
-// Function to send email
+// Function to send email — throws on failure so callers can handle it
 const sendEmail = async (to, subject, text, html) => {
-    try {
-        const info = await transporter.sendMail({
-            from: `"Backend Ledger" <${process.env.EMAIL_USER}>`, // sender address
-            to, // list of receivers
-            subject, // Subject line
-            text, // plain text body
-            html, // html body
-        });
-
-        console.log('Message sent: %s', info.messageId);
-        console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
-    } catch (error) {
-        console.error('Error sending email:', error);
-    }
+    const info = await transporter.sendMail({
+        from: `"NexusBank" <${process.env.EMAIL_USER}>`,
+        to,
+        subject,
+        text,
+        html,
+    });
+    console.log('Email sent: %s', info.messageId);
 };
 
 

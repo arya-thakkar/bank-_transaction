@@ -22,19 +22,29 @@ async function userRegister(req, res) {
   const isExists = await userModel.findOne({ email });
 
   if (isExists) {
-    // If user exists but is not verified, allow re-sending OTP
+    // If user exists but is not yet verified, allow re-sending a fresh OTP
     if (!isExists.isVerified) {
       const otp = generateOTP();
       const otpHash = await bcrypt.hash(otp, 8);
       isExists.otp = otpHash;
-      isExists.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      isExists.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
       await isExists.save();
-      await emailService.sendOTPEmail(email, isExists.name, otp);
+
+      try {
+        await emailService.sendOTPEmail(email, isExists.name, otp);
+      } catch (emailError) {
+        console.error("Failed to resend OTP email:", emailError);
+        return res.status(500).json({
+          message: "Failed to send OTP email. Please try again later.",
+        });
+      }
+
       return res.status(200).json({
         message: "OTP resent. Please verify your email.",
         email,
       });
     }
+
     return res.status(422).json({
       message: "User already exists with this email.",
       status: "failed",
@@ -53,8 +63,16 @@ async function userRegister(req, res) {
     isVerified: false,
   });
 
-  // Send OTP email (do not await so we respond faster)
-  emailService.sendOTPEmail(email, name, otp).catch(console.error);
+  // Send OTP email — if it fails, delete the user so they can try registering again
+  try {
+    await emailService.sendOTPEmail(email, name, otp);
+  } catch (emailError) {
+    console.error("Failed to send OTP email:", emailError);
+    await userModel.deleteOne({ _id: user._id });
+    return res.status(500).json({
+      message: "Failed to send OTP email. Please check your email address and try again.",
+    });
+  }
 
   return res.status(201).json({
     message: "Registration successful. Please check your email for the OTP to verify your account.",
@@ -112,7 +130,7 @@ async function verifyOTP(req, res) {
 
   res.cookie("token", token);
 
-  // Send the welcome email in the background
+  // Send the welcome email in the background (non-critical)
   emailService.sendRegistrationEmail(user.email, user.name).catch(console.error);
 
   return res.status(200).json({
@@ -134,7 +152,7 @@ async function resendOTP(req, res) {
     return res.status(400).json({ message: "email is required" });
   }
 
-  const user = await userModel.findOne({ email }).select("+otpExpiresAt");
+  const user = await userModel.findOne({ email }).select("+otp +otpExpiresAt");
 
   if (!user) {
     return res.status(404).json({ message: "User not found" });
@@ -144,9 +162,7 @@ async function resendOTP(req, res) {
     return res.status(400).json({ message: "Email is already verified." });
   }
 
-  // Throttle resend: only allow a new OTP if the current one has less than 9 minutes left
-  // (meaning at least 1 minute has passed since the last OTP was sent)
-  const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+  // Throttle: only allow resend if at least 1 minute has passed
   if (user.otpExpiresAt && user.otpExpiresAt > new Date(Date.now() + 9 * 60 * 1000)) {
     return res.status(429).json({
       message: "Please wait a moment before requesting a new OTP.",
@@ -159,7 +175,12 @@ async function resendOTP(req, res) {
   user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  emailService.sendOTPEmail(email, user.name, otp).catch(console.error);
+  try {
+    await emailService.sendOTPEmail(email, user.name, otp);
+  } catch (emailError) {
+    console.error("Failed to resend OTP email:", emailError);
+    return res.status(500).json({ message: "Failed to send OTP email. Please try again." });
+  }
 
   return res.status(200).json({
     message: "A new OTP has been sent to your email.",
@@ -182,15 +203,19 @@ async function userLogin(req, res) {
     return res.status(401).json({ message: "Email or password is invalid" });
   }
 
-  // Prevent unverified users from logging in
+  // Prevent unverified users from logging in — send them a fresh OTP
   if (!user.isVerified) {
-    // Re-send them a fresh OTP so they can complete verification
     const otp = generateOTP();
     const otpHash = await bcrypt.hash(otp, 8);
     user.otp = otpHash;
     user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
-    emailService.sendOTPEmail(user.email, user.name, otp).catch(console.error);
+
+    try {
+      await emailService.sendOTPEmail(user.email, user.name, otp);
+    } catch (emailError) {
+      console.error("Failed to send verification OTP:", emailError);
+    }
 
     return res.status(403).json({
       message: "Your email is not verified. A new OTP has been sent to your email.",
