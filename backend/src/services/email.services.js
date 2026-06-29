@@ -24,18 +24,14 @@ transporter.verify((err, success) => {
 
 // Core send function — throws on failure so callers can handle it
 const sendEmail = async (to, subject, text, html) => {
-    try {
     const info = await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: "Your OTP",
-        text: `Your OTP is ${otp}`,
+        from: `"NexusBank" <${process.env.EMAIL_USER}>`,
+        to,
+        subject,
+        text,
+        html,
     });
-
-    console.log("Email sent:", info);
-} catch (err) {
-    console.error("sendMail error:", err);
-}
+    console.log('Email sent to %s: %s', to, info.messageId);
 };
 
 
