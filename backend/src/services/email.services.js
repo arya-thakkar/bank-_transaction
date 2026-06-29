@@ -1,26 +1,20 @@
 const nodemailer = require('nodemailer');
 
-// Simple, reliable SMTP transport using Gmail App Password
-// Much more stable than OAuth2 for server-side use
+import dns from "node:dns";
+dns.setDefaultResultOrder("ipv4first");
+
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // Gmail App Password (16-char, generated in Google Account settings)
+        pass: process.env.EMAIL_PASS,
     },
+    connectionTimeout: 30000,
+    socketTimeout: 30000,
 });
-
-console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS length:", process.env.EMAIL_PASS?.length);
-
-transporter.verify((err, success) => {
-    if (err) {
-        console.error(err);
-    } else {
-        console.log("SMTP Ready");
-    }
-});
-
 
 // Core send function — throws on failure so callers can handle it
 const sendEmail = async (to, subject, text, html) => {
