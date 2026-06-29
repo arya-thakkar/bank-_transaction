@@ -22,23 +22,17 @@ async function userRegister(req, res) {
   const isExists = await userModel.findOne({ email });
 
   if (isExists) {
-    // If user exists but is not yet verified, allow re-sending a fresh OTP
+    // If user exists but is not yet verified, resend a fresh OTP
     if (!isExists.isVerified) {
       const otp = generateOTP();
       const otpHash = await bcrypt.hash(otp, 8);
       isExists.otp = otpHash;
       isExists.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
       await isExists.save();
-
-      try {
-        await emailService.sendOTPEmail(email, isExists.name, otp);
-      } catch (emailError) {
-        console.error("Failed to resend OTP email:", emailError);
-        return res.status(500).json({
-          message: "Failed to send OTP email. Please try again later.",
-        });
-      }
-
+      // Fire email in background — don't block the response
+      emailService.sendOTPEmail(email, isExists.name, otp).catch((e) =>
+        console.error("OTP resend email failed:", e.message)
+      );
       return res.status(200).json({
         message: "OTP resent. Please verify your email.",
         email,
@@ -59,25 +53,20 @@ async function userRegister(req, res) {
     password,
     name,
     otp: otpHash,
-    otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
+    otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
     isVerified: false,
   });
 
-  // Send OTP email — if it fails, delete the user so they can try registering again
-  try {
-    await emailService.sendOTPEmail(email, name, otp);
-  } catch (emailError) {
-    console.error("Failed to send OTP email:", emailError);
-    await userModel.deleteOne({ _id: user._id });
-    return res.status(500).json({
-      message: "Failed to send OTP email. Please check your email address and try again.",
-    });
-  }
-
-  return res.status(201).json({
+  // Respond immediately so the OTP page opens without delay
+  res.status(201).json({
     message: "Registration successful. Please check your email for the OTP to verify your account.",
     email,
   });
+
+  // Send OTP email in the background after responding
+  emailService.sendOTPEmail(email, name, otp).catch((e) =>
+    console.error("OTP email failed:", e.message)
+  );
 }
 
 
