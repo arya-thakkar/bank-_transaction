@@ -10,26 +10,32 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Verify connection on startup
-transporter.verify((error) => {
-    if (error) {
-        console.error('Email server connection failed:', error.message);
+console.log("EMAIL_USER:", process.env.EMAIL_USER);
+console.log("EMAIL_PASS length:", process.env.EMAIL_PASS?.length);
+
+transporter.verify((err, success) => {
+    if (err) {
+        console.error(err);
     } else {
-        console.log('Email server is ready to send messages');
+        console.log("SMTP Ready");
     }
 });
 
 
 // Core send function — throws on failure so callers can handle it
 const sendEmail = async (to, subject, text, html) => {
+    try {
     const info = await transporter.sendMail({
-        from: `"NexusBank" <${process.env.EMAIL_USER}>`,
-        to,
-        subject,
-        text,
-        html,
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Your OTP",
+        text: `Your OTP is ${otp}`,
     });
-    console.log('Email sent to %s: %s', to, info.messageId);
+
+    console.log("Email sent:", info);
+} catch (err) {
+    console.error("sendMail error:", err);
+}
 };
 
 

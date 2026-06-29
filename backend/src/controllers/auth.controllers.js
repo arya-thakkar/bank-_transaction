@@ -12,6 +12,7 @@ function generateOTP() {
 }
 
 
+
 async function userRegister(req, res) {
   const { email, password, name } = req.body;
 
