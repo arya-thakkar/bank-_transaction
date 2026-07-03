@@ -3,7 +3,10 @@ const nodemailer = require('nodemailer');
 // Simple SMTP transport using Gmail App Password
 // This is far more reliable than OAuth2 for server deployments
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    family: 4,          // Force IPv4
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,

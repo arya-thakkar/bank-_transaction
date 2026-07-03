@@ -11,7 +11,6 @@ const app = express();
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow all origins for the pitch presentation
     callback(null, true);
   },
   credentials: true
