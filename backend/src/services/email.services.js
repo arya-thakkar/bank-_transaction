@@ -22,7 +22,7 @@ transporter.verify((error) => {
     }
 });
 
-
+console.log(transporter)
 // Core send function
 const sendEmail = async (to, subject, text, html) => {
     const info = await transporter.sendMail({
