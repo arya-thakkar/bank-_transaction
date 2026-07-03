@@ -1,22 +1,26 @@
 const nodemailer = require('nodemailer');
 
+// Simple SMTP transport using Gmail App Password
+// This is far more reliable than OAuth2 for server deployments
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
+    service: 'gmail',
     auth: {
-        type: "OAuth2",
         user: process.env.EMAIL_USER,
-        clientId: process.env.CLIENT_ID,
-        clientSecret: process.env.CLIENT_SECRET,
-        refreshToken: process.env.REFRESH_TOKEN,
+        pass: process.env.EMAIL_PASS,
     },
-    connectionTimeout: 30000,
-    socketTimeout: 30000,
 });
 
-// Core send function — throws on failure so callers can handle it
+// Verify connection on startup
+transporter.verify((error) => {
+    if (error) {
+        console.error('Email server connection failed:', error.message);
+    } else {
+        console.log('Email server is ready to send messages');
+    }
+});
+
+
+// Core send function
 const sendEmail = async (to, subject, text, html) => {
     const info = await transporter.sendMail({
         from: `"NexusBank" <${process.env.EMAIL_USER}>`,
