@@ -9,7 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 //   Resend account email (fine for testing).
 // - Once you verify a domain in Resend, change this to something like
 //   'NexusBank <otp@yourdomain.com>' to send to any real user.
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'NexusBank <onboarding@resend.dev>';
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'NexusBank <aryathakkar07@gmail.com>';
 
 // Core send function
 const sendEmail = async (to, subject, text, html) => {
