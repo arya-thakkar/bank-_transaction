@@ -1,38 +1,33 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// Simple SMTP transport using Gmail App Password
-// This is far more reliable than OAuth2 for server deployments
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    family: 4,          // Force IPv4
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+// Resend uses HTTPS (port 443), so it isn't affected by Render's
+// blocking of outbound SMTP ports (25, 465, 587).
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Verify connection on startup
-transporter.verify((error) => {
-    if (error) {
-        console.error('Email server connection failed:', error.message);
-    } else {
-        console.log('Email server is ready to send messages');
-    }
-});
-
+// Sender address:
+// - 'onboarding@resend.dev' only works for sending to YOUR OWN verified
+//   Resend account email (fine for testing).
+// - Once you verify a domain in Resend, change this to something like
+//   'NexusBank <otp@yourdomain.com>' to send to any real user.
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'NexusBank <onboarding@resend.dev>';
 
 // Core send function
 const sendEmail = async (to, subject, text, html) => {
-    const info = await transporter.sendMail({
-        from: `"NexusBank" <${process.env.EMAIL_USER}>`,
+    const { data, error } = await resend.emails.send({
+        from: FROM_ADDRESS,
         to,
         subject,
         text,
         html,
     });
-    console.log('Email sent to %s: %s', to, info.messageId);
+
+    if (error) {
+        console.error('Email send failed:', error);
+        throw new Error(error.message || 'Failed to send email');
+    }
+
+    console.log('Email sent to %s: %s', to, data.id);
+    return data;
 };
 
 
